@@ -1,0 +1,110 @@
+```{r}
+library(tidyverse)
+```
+
+Save the path to the folder containing LD data for our test trait pair. This trait pair has more than one overlapping QTL
+```{r}
+tp_folder <- "data/processed/qtl_overlaps/ld_between_peak_markers/Analysis_Results-20240111/length_Chlorothalonil.length_Arsenic_trioxide"
+```
+
+Load the input data to the LD analysis 
+
+```{r}
+overlap_input_file <- "code/qtl_overlaps/ld_between_peak_markers/toxin_length_finemapping_input_with_pheno_files.tsv"
+overlaps <- data.table::fread(overlap_input_file)
+```
+
+# Filter the input data to the trait pair we are interested in
+
+```{r}
+tp_name <- basename(tp_folder)
+
+tp_overlaps <- overlaps %>%
+  filter(trait_pair == tp_name)
+
+# check the number of rows in the filtered data
+nrow(tp_overlaps)
+```
+
+Now lets clean up the data to get informatuon about the overlap intervals 
+
+```{r}
+tp_overlaps_clean <- tp_overlaps  %>% 
+    select(
+        CHROM_A,
+        leftmost,
+        rightmost,
+        peak_pos
+    )
+```
+Now lets get the unique intervals and list the unique peak_pos for each interval
+
+```{r}
+tp_overlap_ints <- tp_overlaps_clean %>%
+    distinct() %>%
+    group_by(CHROM_A, leftmost, rightmost) %>%
+    summarise(peak_pos = paste(peak_pos, collapse = ",")) %>% 
+    ungroup()
+```
+
+# Load the LD data for one overlap interval
+
+```{r}
+test_overlap <- tp_overlap_ints %>%
+    slice(1)
+```
+
+```{r}
+overlap_ld_file_A <- glue::glue(
+    "{tp_folder}/peakPOS_A/Data/{tp_name}.{test_overlap$CHROM_A}.{test_overlap$leftmost}.{test_overlap$rightmost}.LD_inbred.tsv"
+)
+
+overlap_ld_file_B <- glue::glue(
+    "{tp_folder}/peakPOS_B/Data/{tp_name}.{test_overlap$CHROM_A}.{test_overlap$leftmost}.{test_overlap$rightmost}.LD_inbred.tsv"
+)
+
+# check if the files exist
+file.exists(overlap_ld_file_A)
+file.exists(overlap_ld_file_B)
+```
+
+
+real_file_name <- "length_Chlorothalonil.length_Arsenic_trioxide.II.13521931.14347284.LD_inbred.tsv"
+
+real_file_path <- "data/processed/qtl_overlaps/ld_between_peak_markers/Analysis_Results-20240111/length_Chlorothalonil.length_Arsenic_trioxide/peakPOS_A/Data/length_Chlorothalonil.length_Arsenic_trioxide.II.13521931.14347284.LD_inbred.tsv"
+
+Now lets load both the files for the overlap interval
+
+```{r}
+ld_data_A <- data.table::fread(overlap_ld_file_A)
+
+ld_data_B <- data.table::fread(overlap_ld_file_B)
+
+# combine the two data sets
+
+interval_ld <- bind_rows(ld_data_A, ld_data_B)
+
+head(interval_ld)
+```
+
+For the peaks in the interval, we need to find the LD values between them 
+
+```{r}
+test_peaks <- test_overlap$peak_pos %>% str_split(",") %>% unlist() %>% as.numeric()
+
+test_peak_1 <- test_peaks[1]
+test_peak_2 <- test_peaks[2]
+```
+
+Now lets get the LD values between the two peaks
+
+```{r}
+peak_ld_values <- interval_ld %>%
+    filter(
+        BP_A == test_peak_1,
+        BP_B == test_peak_2
+    )
+head(peak_ld_values)
+```
+
+

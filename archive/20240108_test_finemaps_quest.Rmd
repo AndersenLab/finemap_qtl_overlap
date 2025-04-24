@@ -1,0 +1,14 @@
+*** START NO HANG UPS METHOD ***
+
+```{bash}
+srun -A b1042 -p genomicsguestA -N 1 --ntasks-per-node=1 --mem-per-cpu=30G --time=03:00:00 --pty bash -l
+module load singularity
+```
+
+```{bash}
+cd ld_between_peak_markers
+```
+
+```{bash}
+nextflow run finemap_overlaps.nf
+```
