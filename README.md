@@ -1,5 +1,44 @@
 Code to look at the overlap between the peak markers of two different traits.
 
+
+# `finemap_overlaps.nf`
+
+Nextflow workflow to calculate LD between peak markers for each trait pair and finemap the overlapping intervals.
+
+## Inputs
+
+The main input is the output from `prep_ld_input.R` which is a file with the following columns:
+
+To-do:
+- [ ] Add code to create the input file. 
+- [ ] Update the `nextflow.config` file to match RF specific params. 
+- [ ] Remove junk data from the script. 
+- [ ] Optimize the output datastructure. (Low priority given the parsing scripts are designed to work with the current output)
+
+
+### Parameters
+- `qtl_overlap` - This is the main input to the pipeline. It is a path to the `.tsv`input file for overlaping interval pairs.
+    The pipeline expects the following columns:
+    - `trait_pair` - name of the trait pair.
+    - `traitA_file` - path to the `.tsv` trait file for trait A.
+    - `traitB_file` - path to the `.tsv` trait file for trait B.
+    - `peak` - name of the peak marker of interest.
+    - `peak_pos` - position of the peak marker of interest. Either peakPOS_A or peakPOS_B.
+    - `CHROM_A` - chromosome of the peak marker of trait A. (Should always be the same chromosome for trait B because inputs are assumued to be overlapping)
+    - `leftmost` - leftmost position of the interval of interest.
+    - `rightmost` - rightmost position of the interval of interest.
+    Each overlapping interval should have two rows of data, one where each trait is the trait of interst and one where each trait is the other trait.
+    
+
+- `out` - name of the output directory.
+- `maf` - minor allele frequency threshold
+- `sparse_cut` - sparse cut off for the LD calculation (Default = 0.05)
+- `vcf` & `vcf_index` - path to WI VCF file. [ ] Check if this is supposed to be the imputed VCF or the hardfiltered vcf. `vcf_index` is the `.tbi` file.
+- `ann_file` - path to the BCSQ annotation file used in the finemapping. 
+
+
+
+
 # Preparing the input data file for Nextflow script to calculate LD between overlapping peaks
 
 `code/qtl_overlaps/ld_between_peak_markers/20240108_add_phenos_test.Rmd` is currently used to prep inputs for finemapping NF pipeline or the LD between overlapping peaks NF pipeline.
