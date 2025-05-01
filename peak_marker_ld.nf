@@ -1,4 +1,4 @@
-#! usr/bin/env nextflow
+#!/usr/bin/env nextflow
 
 //nextflow.preview.dsl=2
 nextflow.enable.dsl=2
@@ -23,40 +23,68 @@ include { make_finemap_vcf} from './scripts/overlaps.nf'
 include { interval_ld} from './scripts/overlaps.nf'
 
 
-// define the workflow
+
+// Define the workflow
 workflow {
- if( !nextflow.version.matches('>20.0') ) {
-    println "This workflow requires Nextflow version 20.0 or greater -- You are running version $nextflow.version"
-    println "On QUEST, you can use `module load python/anaconda3.6; source activate /projects/b1059/software/conda_envs/nf20_env`"
-    exit 1
+    def vcf = params.vcf
+    def strains = params.strains
+    def peak_a = params.peak_a
+    def peak_b = params.peak_b
+    
+    // Check required parameters
+    if (!vcf || !strains || !peak_a || !peak_b) {
+        error "Missing required parameters. Please provide: vcf, strains, peak_a, and peak_b"
+    }
+    
+    // Run the filter_vcf process
+    filter_vcf(vcf, strains)
+    
+    // Run the calculate_ld process using the output from filter_vcf
+    calculate_ld(filter_vcf.out.vcf, peak_a, peak_b)
 }
 
-
-date = new Date().format( 'yyyyMMdd' )
-if (params.out == null) {
-    out = "Analysis_Results-${date}"
+// Process to filter VCF file
+process filter_vcf {
+    label 'bcftools_filter_vcf'
+    
+    input:
+    path vcf
+    path strains
+    
+    output:
+    path "finemap.vcf.gz", emit: vcf
+    
+    script:
+    """
+    bcftools view -S ${strains} -Ou ${vcf} | \\
+    bcftools filter -i N_MISSING=0 -o finemap.vcf.gz
+    """
 }
 
- /* check if the params are set */
-
-if (params.vcf == null) {
-    println "vcf is not set"
-    exit 1
-}
-
-if (params.vcf_index == null) {
-    println "vcf_index is not set"
-    exit 1
-}
-
-if (params.qtl_overlap == null) {
-    println "qtl_overlap is not set"
-    exit 1
-}
-
- 
-
-
+// Process to calculate LD between peak markers
+process calculate_ld {
+    label 'plink_recode_vcf'
+    
+    input:
+    path vcf
+    val peak_a
+    val peak_b
+    
+    output:
+    path "${peak_a}_${peak_b}.log", emit: log
+    
+    script:
+    """
+    plink --vcf ${vcf} \\
+        --threads 5 \\
+        --snps-only \\
+        --maf 0.05 \\
+        --biallelic-only \\
+        --allow-extra-chr \\
+        --set-missing-var-ids @:# \\
+        --ld ${peak_a} ${peak_b} \\
+        --out ${peak_a}_${peak_b}
+    """
 }
 
 
