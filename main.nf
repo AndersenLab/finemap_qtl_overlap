@@ -4,18 +4,7 @@
 nextflow.enable.dsl=2
 
 
-/*
-~ ~ ~ > * Optional Parameters setup - GENERAL
-*/
-params.rename_chroms = "${workflow.projectDir}/bin/rename_chromosomes"
-params.bin_dir = "${workflow.projectDir}/bin" // this is different for gcp
-params.maf = "0.05"
-params.common_strains_script = "${workflow.projectDir}/bin/common_strains.py"
 
-
-/*
-~ ~ ~ > * Required Parameters setup - GENERAL
-*/
 
 // import the subworkflows
 include { common_strains} from './scripts/overlaps.nf'
@@ -27,13 +16,13 @@ include { interval_ld} from './scripts/overlaps.nf'
 // Define the workflow
 workflow {
     def vcf = params.vcf
-    def strains = params.strains
+    def strains = params.strains ?: file('test_data/strains.txt')
     def peak_a = params.peak_a
     def peak_b = params.peak_b
     
     // Check required parameters
-    if (!vcf || !strains || !peak_a || !peak_b) {
-        error "Missing required parameters. Please provide: vcf, strains, peak_a, and peak_b"
+    if (!vcf || !peak_a || !peak_b) {
+        error "Missing required parameters. Please provide: vcf, peak_a, and peak_b"
     }
     
     // Run the filter_vcf process
