@@ -1,0 +1,124 @@
+This is a script to load a list of phenotype files. For each file that we load, we are going to create a trait name that matches the traitnames in the mapping data.
+
+# 1. Load Libraruies
+```{r}
+library(tidyverse)
+```
+
+# 2. Load the phenotype data
+```{r}
+pheno_dir <- "/projects/b1059/analysis/2021_GWA_analysis/data/traitfiles"
+pheno_files <- list.files(pheno_dir, pattern = "*.tsv", full.names = TRUE)
+length(pheno_files)
+
+print(pheno_files)
+```
+
+# 3. Create a function to pull out the trait name from the file name
+```{r}
+get_trait_name <- function(file_path){
+    file_name <- basename(file_path)
+    trait_name <- str_remove(file_name, ".tsv")
+    #remove the date from the trait name (everything before the first underscore)
+    trait_name <- str_remove(trait_name, "^[^_]*_")
+    #remove the _traitfile from the trait name
+    trait_name <- str_remove(trait_name, "_traitfile")
+    #replace the "." in the trait name with "_"
+    trait_name <- str_replace(trait_name, "\\.", "_")
+    return(trait_name)
+}
+```
+
+Lets test it on the second file
+```{r}
+print(pheno_files[2])
+get_trait_name(pheno_files[2])
+```
+
+Now lets test on the scond file wich has the concentration in the name 
+```{r}
+print(pheno_files[3])
+get_trait_name(pheno_files[3])
+```
+
+And finally lets test on our second edge case, which has a numberic name (first file)
+```{r}
+print(pheno_files[1])
+get_trait_name(pheno_files[1])
+```
+
+Now we want to create a dataframe with two columns, the file path and the trait name
+```{r}
+pheno_df <- data.frame(
+    file_path = pheno_files,
+    trait_name = sapply(pheno_files, get_trait_name)
+)
+
+head(pheno_df)
+```
+
+Remove the row names from `pheno_df`
+```{r}
+rownames(pheno_df) <- NULL
+```
+
+# 4. Load the overlapping qtl interval code
+```{r}
+overlaps <- data.table::fread("ld_between_peak_markers/data/test_data/toxin_length_finemapping_input.tsv")
+```
+
+# 5. Pull out toxicantA and toxicantB ids from the overlaps data by removing length_<toxicant> or CV_length_<toxicant> from traitA and traitB
+
+First lets write a function that remove the trait type, either CV_length_<trait> or length_<trait> from the trait name
+```{r}
+remove_trait_type <- function(trait_name){
+    if(str_detect(trait_name, "CV_length_")){
+        trait_name <- str_remove(trait_name, "CV_length_")
+    } else if(str_detect(trait_name, "length_")){
+        trait_name <- str_remove(trait_name, "length_")
+    }
+    return(trait_name)
+}
+```
+
+```{r}
+overlaps1 <- overlaps %>%
+    mutate(
+        toxicantA = sapply(traitA, remove_trait_type),
+        toxicantB = sapply(traitB, remove_trait_type)
+    )
+```
+
+# 6. Merge the phenotype data with the overlaps data
+
+We want to join the phenotype data for both trait A and trait B to the overlaps data. 
+
+We also want to define a trait column that is the phenotype file for the trait that corresponds to the peak column (either peakPOSA = toxicantAor peakPOSB = toxicantB)
+
+```{r}
+overlaps2 <- overlaps1 %>%
+    left_join(pheno_df, by = c("toxicantA" = "trait_name")) %>%
+    rename(
+        traitA_file = file_path,
+        #traitA = trait_name
+    ) %>%
+    left_join(pheno_df, by = c("toxicantB" = "trait_name")) %>%
+    rename(
+        traitB_file = file_path,
+        #traitB = trait_name
+    )
+```
+
+If the value in the `peak` column is `peakPOS_A` then the value in traitA_file should be the value in the `traitA_file` column. If the value in the `peak` column is `peakPOS_B` then the value in traitB_file should be the value in the `traitB_file` column. 
+
+```{r}
+overlaps3 <- overlaps2 %>%
+    mutate(
+        trait_file = ifelse(peak == "peakPOS_A", traitA_file, traitB_file)
+    )
+```
+
+# 7. Write out the overlaps data with the phenotype file names
+```{r}
+write.table(overlaps3, "ld_between_peak_markers/data/test_data/toxin_length_finemapping_input_with_pheno_files.tsv", sep = "\t", row.names = FALSE, quote = FALSE)
+```
