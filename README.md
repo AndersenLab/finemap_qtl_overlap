@@ -1,6 +1,8 @@
 Code to look at the overlap between the peak markers of two different traits.
 
+# `peak_marker_ld.nf`
 
+Nextflow workflow to calculate LD between peak markers for overlapping intervals.
 # `finemap_overlaps.nf`
 
 Nextflow workflow to calculate LD between peak markers for each trait pair and finemap the overlapping intervals.
