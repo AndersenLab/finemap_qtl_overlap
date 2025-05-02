@@ -60,10 +60,11 @@ process calculate_ld {
     val peak_b
     
     output:
-    path "${peak_a}_${peak_b}.log", emit: log
+    path "ld_output/*", emit: ld_files
     
     script:
     """
+    mkdir -p ld_output
     plink --vcf ${vcf} \\
         --threads 5 \\
         --snps-only \\
@@ -72,7 +73,7 @@ process calculate_ld {
         --allow-extra-chr \\
         --set-missing-var-ids @:# \\
         --ld ${peak_a} ${peak_b} \\
-        --out ${peak_a}_${peak_b}
+        --out ld_output/${peak_a}_${peak_b}
     """
 }
 
