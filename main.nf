@@ -34,7 +34,7 @@ workflow {
 
 // Process to filter VCF file
 process filter_vcf {
-    label 'bcftools_filter_vcf'
+    label 'filter_vcf'
     
     input:
     path vcf
@@ -52,7 +52,7 @@ process filter_vcf {
 
 // Process to calculate LD between peak markers
 process calculate_ld {
-    label 'plink_recode_vcf'
+    label 'calculate_ld'
     
     input:
     path vcf
