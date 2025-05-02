@@ -16,7 +16,7 @@ include { interval_ld} from './scripts/overlaps.nf'
 // Define the workflow
 workflow {
     def vcf = params.vcf
-    def strains = params.strains ?: file('test_data/strains.txt')
+    def strains = params.strains ?: file("${workflow.projectDir}/test_data/strains.txt")
     def peak_a = params.peak_a
     def peak_b = params.peak_b
     
