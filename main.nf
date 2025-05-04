@@ -3,8 +3,8 @@
 //nextflow.preview.dsl=2
 nextflow.enable.dsl=2
 
-
-
+// Needed to publish results
+nextflow.preview.output = true
 
 // import the subworkflows
 include { common_strains} from './scripts/overlaps.nf'
@@ -30,6 +30,10 @@ workflow {
     
     // Run the calculate_ld process using the output from filter_vcf
     calculate_ld(filter_vcf.out.vcf, peak_a, peak_b)
+    
+    publish:
+    result.inbred     >> "."
+    
 }
 
 // Process to filter VCF file
