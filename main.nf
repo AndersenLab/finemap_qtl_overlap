@@ -32,7 +32,7 @@ workflow {
     calculate_ld(filter_vcf.out.vcf, peak_a, peak_b)
     
     publish:
-    result.inbred     >> "."
+    calculate_ld.ld_files >> "."
     
 }
 
