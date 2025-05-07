@@ -29,20 +29,37 @@ workflow {
     // Parse the marker pairs CSV file
     Channel.fromPath(marker_pairs)
         .splitCsv(header: true)
-        .map { row -> [row.peak_idA, row.peakidB] }
-        .set { peak_pairs }
+        .map { row -> tuple(row.peak_idA, row.peakidB) } // Emit tuples
+        .set { peak_pairs_ch }
 
     // Run the filter_vcf process
     filter_vcf(vcf, strains)
 
-    // Run the calculate_ld process for each peak pair
-    filtered_vcf = filter_vcf.out.vcf
-    calculate_ld(filtered_vcf.combine(peak_pairs))
-    
-    ch_outs = calculate_ld.out.ld_files
+    // Prepare input for calculate_ld
+    filtered_vcf_ch = filter_vcf.out.vcf
+    input_for_calculate_ld = filtered_vcf_ch.combine(peak_pairs_ch)
 
-    publish:
-    ch_outs >> "."
+    // Run the calculate_ld process for each peak pair
+    calculate_ld(input_for_calculate_ld)
+    
+    // Extract R-squared values
+    ch_for_extraction = calculate_ld.out.ld_outputs
+        .map { peak_a, peak_b, log_file -> tuple(peak_a, peak_b, log_file) }
+    extract_r_squared(ch_for_extraction)
+
+    // Aggregate R-squared values and prepare CSV content
+    ch_rsq_data = extract_r_squared.out.rsq_values // Channel: [peak_a, peak_b, rsq_string]
+    
+    ch_final_csv_content = ch_rsq_data
+        .collect() // Collect all [peak_a, peak_b, rsq_string] into a single list
+        .map { list_of_results ->
+            def header = "peak_idA,peakidB,R_sq"
+            def lines = list_of_results.collect { pa, pb, rsq -> "${pa},${pb},${rsq.trim()}" }
+            ([header] + lines).join("\\n") + "\\n" // Final string content for the CSV
+        }
+    
+    // Write the final CSV file
+    write_final_csv(ch_final_csv_content)
 
 }
 output {
@@ -76,14 +93,14 @@ process calculate_ld {
     tuple path(vcf), val(peak_a), val(peak_b)
 
     output:
-    tuple path("${peak_a}.${peak_b}.log"), path("${peak_a}.${peak_b}.nosex"), emit: ld_files
+    tuple val(peak_a), val(peak_b), path("${peak_a}.${peak_b}.log"), emit: ld_outputs
 
     script:
     def peak_a_transformed = peak_a.replaceAll("_", ":")
     def peak_b_transformed = peak_b.replaceAll("_", ":")
     """
     plink --vcf ${vcf} \\
-        --threads 5 \\
+        --threads \${task.cpus} \\
         --snps-only \\
         --maf 0.05 \\
         --biallelic-only \\
@@ -91,5 +108,44 @@ process calculate_ld {
         --set-missing-var-ids @:# \\
         --ld ${peak_a_transformed} ${peak_b_transformed} \\
         --out ${peak_a}.${peak_b}
+    """
+}
+
+// New process to extract R-squared value
+process extract_r_squared {
+    label 'extract_r_squared'
+
+    input:
+    tuple val(peak_a), val(peak_b), path(log_file)
+
+    output:
+    tuple val(peak_a), val(peak_b), stdout, emit: rsq_values
+
+    script:
+    """
+    #!/bin/bash
+    rsq_val=\$(grep 'R-sq = ' "${log_file}" | awk '{print \$3}')
+    if [[ -z "\$rsq_val" ]]; then
+      echo "NA"
+    else
+      echo "\$rsq_val"
+    fi
+    """
+}
+
+// New process to write the final CSV file
+process write_final_csv {
+    label 'write_final_csv'
+    publishDir "${params.outdir}", mode: 'copy', overwrite: true
+
+    input:
+    val csv_content
+
+    output:
+    path "peak_ld_rsq.csv", emit: file
+
+    script:
+    """
+    echo "${csv_content}" > peak_ld_rsq.csv
     """
 }
