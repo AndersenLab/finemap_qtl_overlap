@@ -16,6 +16,7 @@ include { interval_ld } from './scripts/overlaps.nf'
 // Define the workflow
 workflow {
     main:
+    def outdir = params.outdir ?: "${workflow.projectDir}/results"
     def vcf = params.vcf
     def strains = params.strains ?: file("${workflow.projectDir}/test_data/strains.txt")
     def marker_pairs = params.marker_pairs ?: file("${workflow.projectDir}/test_data/test_peaks.csv")
@@ -37,9 +38,17 @@ workflow {
     // Run the calculate_ld process for each peak pair
     filtered_vcf = filter_vcf.out.vcf
     calculate_ld(filtered_vcf.combine(peak_pairs))
+    
+    ch_outs = calculate_ld.out.ld_files
 
     publish:
-    calculate_ld.out.ld_files.flatten().collect() >> "."
+    ch_outs >> "."
+
+}
+output {
+    "." {
+        mode "copy"
+    }
 }
 // Process to filter VCF file
 process filter_vcf {

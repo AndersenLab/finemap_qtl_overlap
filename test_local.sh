@@ -9,4 +9,5 @@ source ~/.zshrc
 # run the workflow
 nextflow run main.nf -profile local \
 -resume \
---vcf /Users/ryanmckeown/Desktop/finemap_qtl_overlap/WI.20220216.hard-filter.isotype.vcf.gz
+-output-dir /Users/ryanmckeown/Desktop/finemap_qtl_overlap/results \
+--vcf /Users/ryanmckeown/Desktop/finemap_qtl_overlap/WI.20220216.hard-filter.isotype.vcf.gz \
