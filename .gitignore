@@ -1,1 +1,9 @@
 WI.20220216.hard-filter.isotype.vcf.gz
+.nextflow.log
+.nextflow.log.*
+.nextflow
+work_local/*
+pipeline-info
+pipeline-info/*
+nextflow
+.DS_Store
