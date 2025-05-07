@@ -70,16 +70,18 @@ process calculate_ld {
     tuple path("${peak_a}_${peak_b}.log"), path("${peak_a}_${peak_b}.nosex"), emit: ld_files
 
     script:
+    def peak_a_transformed = peak_a.replaceAll("_", ":")
+    def peak_b_transformed = peak_b.replaceAll("_", ":")
     """
-    mkdir -p ld_output
     plink --vcf ${vcf} \\
         --threads 5 \\
         --snps-only \\
+        --threads 5 \\
         --maf 0.05 \\
         --biallelic-only \\
         --allow-extra-chr \\
         --set-missing-var-ids @:# \\
-        --ld ${peak_a} ${peak_b} \\
+        --ld ${peak_a_transformed} ${peak_b_transformed} \\
         --out ${peak_a}.${peak_b}
     """
 }
