@@ -49,18 +49,12 @@ workflow {
 
     // Aggregate R-squared values and prepare CSV content
     ch_rsq_data = extract_r_squared.out.rsq_values // Channel: [peak_a, peak_b, rsq_string]
-    
-    ch_final_csv_content = ch_rsq_data
-        .collect() // Collect all [peak_a, peak_b, rsq_string] into a single list
-        .map { list_of_results ->
-            def header = "peak_idA,peakidB,R_sq"
-            def lines = list_of_results.collect { pa, pb, rsq -> "${pa},${pb},${rsq.trim()}" }
-            ([header] + lines).join("\\n") + "\\n" // Final string content for the CSV
-        }
-    
-    // Write the final CSV file
-    write_final_csv(ch_final_csv_content)
 
+    //ch_rsq_data.view()
+    out_ch = extract_r_squared.out.rsq_values // Channel: [peak_a, peak_b, rsq_string_from_stdout]
+    
+    out_ch.map { it.join(',') }
+    .collectFile(name:'output.csv', newLine:true, sort:false).view()
 }
 output {
     "." {
@@ -125,18 +119,13 @@ process extract_r_squared {
     """
     #!/bin/bash
     rsq_val=\$(grep 'R-sq = ' "${log_file}" | awk '{print \$3}')
-    if [[ -z "\$rsq_val" ]]; then
-      echo "NA"
-    else
-      echo "\$rsq_val"
-    fi
+    echo "\$rsq_val"
     """
 }
 
 // New process to write the final CSV file
 process write_final_csv {
     label 'write_final_csv'
-    publishDir "${params.outdir}", mode: 'copy', overwrite: true
 
     input:
     val csv_content
