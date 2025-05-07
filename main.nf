@@ -100,7 +100,7 @@ process calculate_ld {
     def peak_b_transformed = peak_b.replaceAll("_", ":")
     """
     plink --vcf ${vcf} \\
-        --threads \${task.cpus} \\
+        --threads 6 \\
         --snps-only \\
         --maf 0.05 \\
         --biallelic-only \\
