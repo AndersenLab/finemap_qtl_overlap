@@ -67,7 +67,7 @@ process calculate_ld {
     tuple path(vcf), val(peak_a), val(peak_b)
 
     output:
-    tuple path("${peak_a}_${peak_b}.log"), path("${peak_a}_${peak_b}.nosex"), emit: ld_files
+    tuple path("${peak_a}.${peak_b}.log"), path("${peak_a}.${peak_b}.nosex"), emit: ld_files
 
     script:
     def peak_a_transformed = peak_a.replaceAll("_", ":")
@@ -76,7 +76,6 @@ process calculate_ld {
     plink --vcf ${vcf} \\
         --threads 5 \\
         --snps-only \\
-        --threads 5 \\
         --maf 0.05 \\
         --biallelic-only \\
         --allow-extra-chr \\
