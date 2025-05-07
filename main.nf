@@ -18,24 +18,29 @@ workflow {
     main:
     def vcf = params.vcf
     def strains = params.strains ?: file("${workflow.projectDir}/test_data/strains.txt")
-    def peak_a = params.peak_a
-    def peak_b = params.peak_b
+    def marker_pairs = params.marker_pairs ?: file("${workflow.projectDir}/test_data/test_peaks.csv")
 
     // Check required parameters
-    if (!vcf || !peak_a || !peak_b) {
-        error("Missing required parameters. Please provide: vcf, peak_a, and peak_b")
+    if (!vcf || !marker_pairs) {
+        error("Missing required parameters. Please provide: vcf and marker_pairs")
     }
+
+    // Parse the marker pairs CSV file
+    Channel.fromPath(marker_pairs)
+        .splitCsv(header: true)
+        .map { row -> [row.peak_idA, row.peakidB] }
+        .set { peak_pairs }
 
     // Run the filter_vcf process
     filter_vcf(vcf, strains)
 
-    // Run the calculate_ld process using the output from filter_vcf
-    calculate_ld(filter_vcf.out.vcf, peak_a, peak_b)
+    // Run the calculate_ld process for each peak pair
+    filtered_vcf = filter_vcf.out.vcf
+    calculate_ld(filtered_vcf.combine(peak_pairs))
 
     publish:
-    calculate_ld.out.ld_files >> "."
+    calculate_ld.out.ld_files.flatten().collect() >> "."
 }
-
 // Process to filter VCF file
 process filter_vcf {
     label 'filter_vcf'
@@ -59,12 +64,10 @@ process calculate_ld {
     label 'calculate_ld'
 
     input:
-    path vcf
-    val peak_a
-    val peak_b
+    tuple path(vcf), val(peak_a), val(peak_b)
 
     output:
-    tuple path("pair_ld.log"), path("pair_ld.nosex"), emit: ld_files
+    tuple path("${peak_a}_${peak_b}.log"), path("${peak_a}_${peak_b}.nosex"), emit: ld_files
 
     script:
     """
@@ -77,6 +80,6 @@ process calculate_ld {
         --allow-extra-chr \\
         --set-missing-var-ids @:# \\
         --ld ${peak_a} ${peak_b} \\
-        --out pair_ld
+        --out ${peak_a}.${peak_b}
     """
 }
