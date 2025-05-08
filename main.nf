@@ -48,13 +48,10 @@ workflow {
     extract_r_squared(ch_for_extraction)
 
     // Aggregate R-squared values and prepare CSV content
-    ch_rsq_data = extract_r_squared.out.rsq_values // Channel: [peak_a, peak_b, rsq_string]
-
-    //ch_rsq_data.view()
     out_ch = extract_r_squared.out.rsq_values // Channel: [peak_a, peak_b, rsq_string_from_stdout]
     
     out_ch.map { it.join(',') }
-    .collectFile(name:'output.csv', newLine:true, sort:false).view()
+    .collectFile(name:"${outdir}/peak_ld_rsq.csv", sort:false).view()
 }
 output {
     "." {
